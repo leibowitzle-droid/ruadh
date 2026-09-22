@@ -62,15 +62,13 @@ apt-get update && apt-get install -y poppler-utils
      code goes in `SWIFT`. If several banks are listed as valid options, pick
      one (the first listed is a reasonable default) rather than leaving it
      blank — note in your summary to the user that alternates exist.
-   - `Date`: the invoice date, if there is a clear balance due on the invoice
-     (e.g. an unpaid proforma or bill). Leave it blank if the invoice doesn't
-     represent a balance due (e.g. it's already paid, or it's just a spec
-     sheet).
 
    Always set `Opening Balance` to `0`, regardless of the invoice total — do
    not carry the invoice amount into this field. The invoice amount itself
    should be entered in QBO as a bill/transaction against the vendor, not as
-   the vendor's opening balance.
+   the vendor's opening balance. Since `Date` in this CSV is the "as of" date
+   for that opening balance, always set it to today's date rather than the
+   invoice date.
 
    Leave any field you can't find blank rather than guessing — `build_vendor_csv.py`
    writes missing keys as empty cells.
@@ -84,7 +82,7 @@ apt-get update && apt-get install -y poppler-utils
        "Name": "...", "Company": "...", "Email": "...", "Phone": "...",
        "Mobile": "", "Fax": "", "Website": "",
        "Street": "...", "City": "...", "State": "...", "ZIP": "...", "Country": "...",
-       "Opening Balance": 0, "Date": "YYYY-MM-DD",
+       "Opening Balance": 0, "Date": "<today's date, YYYY-MM-DD>",
        "Tax ID": "...", "Bank Account": "...", "Bank Routing (ABA)": "", "SWIFT": "..."
      }
    ]
