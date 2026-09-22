@@ -62,10 +62,15 @@ apt-get update && apt-get install -y poppler-utils
      code goes in `SWIFT`. If several banks are listed as valid options, pick
      one (the first listed is a reasonable default) rather than leaving it
      blank — note in your summary to the user that alternates exist.
-   - An `Opening Balance` and `Date`, if the invoice represents an amount
-     owed (e.g. an unpaid proforma or bill). Use the invoice total and its
-     date. Skip these fields if the invoice doesn't represent a balance due
-     (e.g. it's already paid, or it's just a spec sheet).
+   - `Date`: the invoice date, if there is a clear balance due on the invoice
+     (e.g. an unpaid proforma or bill). Leave it blank if the invoice doesn't
+     represent a balance due (e.g. it's already paid, or it's just a spec
+     sheet).
+
+   Always set `Opening Balance` to `0`, regardless of the invoice total — do
+   not carry the invoice amount into this field. The invoice amount itself
+   should be entered in QBO as a bill/transaction against the vendor, not as
+   the vendor's opening balance.
 
    Leave any field you can't find blank rather than guessing — `build_vendor_csv.py`
    writes missing keys as empty cells.
@@ -79,7 +84,7 @@ apt-get update && apt-get install -y poppler-utils
        "Name": "...", "Company": "...", "Email": "...", "Phone": "...",
        "Mobile": "", "Fax": "", "Website": "",
        "Street": "...", "City": "...", "State": "...", "ZIP": "...", "Country": "...",
-       "Opening Balance": 0.00, "Date": "YYYY-MM-DD",
+       "Opening Balance": 0, "Date": "YYYY-MM-DD",
        "Tax ID": "...", "Bank Account": "...", "Bank Routing (ABA)": "", "SWIFT": "..."
      }
    ]
@@ -92,11 +97,10 @@ apt-get update && apt-get install -y poppler-utils
    ```
 
 6. **Deliver and flag caveats.** Send the CSV to the user. Always call out:
-   - **Foreign currency amounts.** QuickBooks Online's `Opening Balance`
-     column has no currency label — it's read in whatever currency the
-     vendor/company is set to. If the invoice was in EUR (or any non-home
-     currency), tell the user to set the vendor up as multi-currency in QBO
-     *before* importing, or the number will be misread as their home currency.
+   - **The invoice amount itself.** Opening Balance is always written as 0,
+     so remind the user the invoice total (and its currency, if foreign) still
+     needs to be entered separately in QBO as a bill against this vendor once
+     it's imported.
    - **Fields you left blank** because the invoice didn't have the info
      (missing tax ID, no bank details, etc.) — these need manual follow-up
      before import.
@@ -111,5 +115,6 @@ apt-get update && apt-get install -y poppler-utils
   than by a script. Don't try to fully automate vendor identification; a
   misread bank account or tax ID is expensive to get wrong.
 - Multiple invoices for the same vendor across separate PDFs can go into one
-  `vendors.json` as separate entries, or be merged into one vendor entry if
-  the user wants a single opening balance — ask if it's ambiguous.
+  `vendors.json` as separate entries, or be merged into one vendor entry —
+  ask if it's ambiguous. Since Opening Balance is always 0, this choice
+  doesn't affect any dollar amount in the CSV itself.
