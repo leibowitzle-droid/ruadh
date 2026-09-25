@@ -2,9 +2,11 @@
 """Fill Guardian's NY DBL + PFL quarterly premium report from a payroll export.
 
 Inputs:
-  - the Guardian "PREMIUM REPORT - QUARTERLY" PDF for the billing period
-    (a blank statement, or a previously filled one -- any flattened fill
-    layer is stripped before writing new values)
+  - the Guardian "PREMIUM REPORT - QUARTERLY" PDF for the billing period.
+    Guardian's blank statement is a fillable form: values go into its
+    fields (still editable afterwards). A previously filled, flattened
+    statement also works: its fill layer is stripped and values are drawn
+    as page text.
   - the QuickBooks payroll report .xlsx: one row per employee, already
     summed across every pay run in the billing period. Columns used:
       Employee, Employee gross pay, Start date (= HIRE DATE),
@@ -28,6 +30,7 @@ import argparse
 import calendar
 import datetime as dt
 import io
+import logging
 import re
 import sys
 from decimal import Decimal, ROUND_HALF_UP
@@ -159,6 +162,48 @@ def strip_prior_fill(writer):
     return len(drop)
 
 
+def place_values(writer, placements):
+    """Put each value in the fillable field at its box if the form has one
+    (matched by the widget's lower-left corner, since Guardian's field names
+    are inconsistent); otherwise draw it on the page as text."""
+    page = writer.pages[0]
+    widgets = {}
+    for annot in page.get('/Annots') or []:
+        w = annot.get_object()
+        if w.get('/Subtype') == '/Widget' and w.get('/T'):
+            r = [float(v) for v in w['/Rect']]
+            widgets[(min(r[0], r[2]), min(r[1], r[3]))] = w['/T']
+
+    def field_at(x, y):
+        return next((name for (wx, wy), name in widgets.items()
+                     if abs(wx - x) < 3 and abs(wy - y) < 3), None)
+
+    fields, loose = {}, []
+    for (x, y), text in placements:
+        name = field_at(x, y)
+        if name:
+            fields[name] = text
+        else:
+            loose.append(((x, y), text))
+
+    if fields:
+        # Guardian's field /DA names a font the form doesn't embed; pypdf
+        # falls back to Helvetica (which matches) and warns once per field.
+        logging.getLogger('pypdf').setLevel(logging.ERROR)
+        writer.set_need_appearances_writer(True)
+        writer.update_page_form_field_values(page, fields, auto_regenerate=False)
+    if loose:
+        buf = io.BytesIO()
+        cv = canvas.Canvas(buf, pagesize=(612, 792))
+        cv.setFont('Helvetica', 10)
+        for (x, y), text in loose:
+            cv.drawString(x, y + 3.31, text)
+        cv.save()
+        buf.seek(0)
+        page.merge_page(pypdf.PdfReader(buf).pages[0])
+    return len(fields), len(loose)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('statement')
@@ -216,33 +261,29 @@ def main():
         'preparer': a.preparer, 'email': a.email,
     }
 
-    buf = io.BytesIO()
-    cv = canvas.Canvas(buf, pagesize=(612, 792))
-    cv.setFont('Helvetica', 10)
-    for key, v in vals.items():
-        x, y = POS[key]
-        cv.drawString(x, y + 3.31, str(v))
+    placements = [(POS[k], str(v)) for k, v in vals.items()]
     for i, _, m, f in counts:
-        cv.drawString(MONTH_COL_X[i], M_ROW_Y + 3.31, str(m))
-        cv.drawString(MONTH_COL_X[i], F_ROW_Y + 3.31, str(f))
-    cv.save()
-    buf.seek(0)
+        placements.append(((MONTH_COL_X[i], M_ROW_Y), str(m)))
+        placements.append(((MONTH_COL_X[i], F_ROW_Y), str(f)))
 
     writer = pypdf.PdfWriter()
     writer.append(reader)
     stripped = strip_prior_fill(writer)
-    writer.pages[0].merge_page(pypdf.PdfReader(buf).pages[0])
+    filled, drawn = place_values(writer, placements)
     writer.write(a.out)
 
     if a.preview:
         import pypdfium2
-        pypdfium2.PdfDocument(a.out)[0].render(scale=2).to_pil().save(a.preview)
+        doc = pypdfium2.PdfDocument(a.out)
+        doc.init_forms()  # otherwise fillable-field values don't render
+        doc[0].render(scale=2, may_draw_forms=True).to_pil().save(a.preview)
 
     print(f"Policy {st['policy']}  period {st['begin']:%m/%d/%Y}-{st['end']:%m/%d/%Y}  due {st['due']:%m/%d/%Y}")
     print(f"Rates: M ${st['rate_m']}  F ${st['rate_f']}  min ${st['min_prem']}  "
           f"DBL cap ${st['dbl_cap']:,}/qtr  PFL cap ${st['pfl_cap']:,}/yr  PFL rate {st['pfl_rate']}")
     if stripped:
         print(f"Stripped {stripped} prior fill layer(s) from the statement.")
+    print(f"Filled {filled} form field(s); drew {drawn} value(s) as page text.")
     print("\nEmployees:")
     for e in emps:
         flag = '' if e['hired'] <= st['end'] else '  (hired after period -- excluded)'

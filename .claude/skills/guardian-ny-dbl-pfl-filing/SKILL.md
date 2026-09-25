@@ -15,10 +15,15 @@ its logic inline; call it as-is.
 
 ## Inputs
 
-1. **The Guardian statement PDF** for the billing period. It can be a blank
-   statement or one that was filled in before. The script strips any
-   previously flattened values before writing new ones. It reads everything
-   that changes each quarter from the PDF itself:
+1. **The Guardian statement PDF** for the billing period. Prefer Guardian's
+   **blank statement**, which is a fillable PDF form. The script puts the
+   values into its fields, so they can still be edited in Acrobat or
+   Preview afterward. It matches fields by box position, because Guardian's
+   field names aren't reliable (the female premium field is named "DBL
+   Premium Due Male ..."). A statement that was filled in before and
+   flattened also works: the old values are stripped and the new ones are
+   drawn as text. The script reads everything that changes each quarter
+   from the PDF itself:
    - period begin/end dates and the payment due date
    - DBL rates per employee per month (male and female)
    - the DBL minimum quarterly premium
@@ -78,8 +83,10 @@ Ignore the `Snapshot Date` column.
        --preview preview.png
    ```
 
-   It prints the rates it parsed, each employee's gender, hire date and
-   wages, the monthly headcounts, and every line from A through F.
+   It prints the rates it parsed, how many form fields it filled (18 on
+   the current blank form, 0 on a flattened one), each employee's gender,
+   hire date and wages, the monthly headcounts, and every line from A
+   through F.
 3. **Open `preview.png` with the Read tool** and check that every value sits
    in its box and nothing from an earlier fill is still showing.
 4. **Report to the user:**
@@ -112,5 +119,12 @@ top of the script) match form NYGQSEP. If Guardian changes the form:
 2. Re-measure the box positions. The flattened fill layer in a previously
    filled statement (a form XObject with `/Tx BMC` children) gives exact
    coordinates.
-3. If the script can't parse a rate or date, it exits and names the missing
-   item. Update that regex in `parse_statement`.
+3. On a fillable form, `pypdf.PdfReader(pdf).pages[0]['/Annots']` gives
+   each widget's `/Rect`. Its lower-left corner is what `POS` must match
+   (within 3pt).
+4. If the script can't parse a rate or date, it exits and names the
+   missing item. Update that regex in `parse_statement`.
+5. The current form has fields for months 2 and 3 only, because month 1
+   (JUL) is pre-printed N/A. On a full-quarter form, check that the
+   month-1 box sits at `MONTH_COL_X[0]`. If no field matches, the value is
+   drawn as text there instead.
