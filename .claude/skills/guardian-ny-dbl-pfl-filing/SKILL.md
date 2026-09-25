@@ -15,8 +15,15 @@ its logic inline; call it as-is.
 
 ## Inputs
 
-1. **The Guardian statement PDF** for the billing period. Prefer Guardian's
-   **blank statement**, which is a fillable PDF form. The script puts the
+1. **The Guardian statement PDF** for the billing period. **Use the new
+   blank statement Guardian sends each quarter.** The period and due dates
+   are printed on the page, not in the fields, so a statement from an
+   earlier quarter can't be reused. Don't store a copy in the repo: it
+   shows the policy number and business address, and the repo is public.
+   The "$" Guardian pre-types in the money fields doesn't need removing,
+   because the script replaces each field's whole value.
+
+   The statement is a fillable PDF form. The script puts the
    values into its fields, so they can still be edited in Acrobat or
    Preview afterward. It matches fields by box position, because Guardian's
    field names aren't reliable (the female premium field is named "DBL
@@ -40,6 +47,10 @@ its logic inline; call it as-is.
    - `Start date`: **this is the employee's HIRE DATE**, not a pay-period
      start. It drives every headcount on the form.
    - `Identified gender` (falls back to `Legal gender`)
+   - `Pay run check date` (optional). If it's present, every check date
+     must fall inside the statement's period. Otherwise the script stops,
+     which catches a statement from the wrong quarter or a payroll report
+     run for the wrong dates.
    - A year-to-date gross pay column (optional). Any header containing
      "year to date" or "YTD" plus "gross" is picked up. It must be YTD as of
      the period end, so it includes this period's pay. The script uses it to

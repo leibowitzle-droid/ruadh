@@ -121,6 +121,7 @@ def load_payroll(path):
     if missing:
         sys.exit(f"Payroll report is missing columns: {missing}")
     gcol = col.get('Identified gender', col.get('Legal gender'))
+    ccol = col.get('Pay run check date')
     ycol = next((i for h, i in col.items() if h and 'gross' in str(h).lower()
                  and re.search(r'year.to.date|\bytd\b', str(h).lower())), None)
     emps = []
@@ -133,10 +134,13 @@ def load_payroll(path):
         gender = (r[gcol] or '').strip().title() if gcol is not None else ''
         if gender not in ('Male', 'Female'):
             sys.exit(f"{name}: gender is {gender!r}; the form only has Male/Female rows.")
+        check = r[ccol] if ccol is not None else None
+        check = check.date() if isinstance(check, dt.datetime) else check
         ytd = r[ycol] if ycol is not None else None
         emps.append({'name': name, 'gender': gender, 'hired': hired,
                      'wages': D(str(r[col['Employee gross pay']])),
-                     'ytd': D(str(ytd)) if ytd is not None else None})
+                     'ytd': D(str(ytd)) if ytd is not None else None,
+                     'check': check})
     return emps, ycol is not None
 
 
@@ -218,6 +222,14 @@ def main():
     st = parse_statement(reader)
     emps, has_ytd = load_payroll(a.payroll)
     months = quarter_months(st)
+
+    outside = [e for e in emps if e['check'] and not st['begin'] <= e['check'] <= st['end']]
+    if outside:
+        for e in outside:
+            print(f"  {e['name']}: check date {e['check']:%m/%d/%Y}", file=sys.stderr)
+        sys.exit(f"Payroll check dates fall outside the statement period "
+                 f"{st['begin']:%m/%d/%Y}-{st['end']:%m/%d/%Y}. Use this quarter's "
+                 f"Guardian statement and a payroll report run for the same period.")
 
     # A month is on the form only if it overlaps the billing period
     # (earlier months are pre-printed N/A). An employee counts in a month
