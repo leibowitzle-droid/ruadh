@@ -1,9 +1,9 @@
 ---
-name: Guardian NY DBL PFL Filing
+name: Guardian Employee Benefits
 description: Fill out Guardian's quarterly New York State Disability Benefits (NY DBL) and Paid Family Leave (NY PFL) premium report from a QuickBooks payroll report. Use this whenever the user shares a Guardian premium report / statement PDF and a payroll spreadsheet, asks to "do the Guardian filing," "file NY DBL and PFL," "fill out the disability/paid family leave premium report," or wants to repeat this quarterly process. Also trigger if the user mentions Guardian policy 00903942 or the NYGQSEP form.
 ---
 
-# Guardian NY DBL + PFL Premium Filing
+# Guardian Employee Benefits
 
 Fills in Guardian's "NY State Mandated DISABILITY BENEFIT and PAID FAMILY
 LEAVE — PREMIUM REPORT - QUARTERLY" (form code NYGQSEP, bottom of page 1)
